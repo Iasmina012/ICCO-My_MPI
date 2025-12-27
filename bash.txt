@@ -1,0 +1,19 @@
+cd desktop/ICCO-My_MPI
+
+make clean
+
+make
+
+mpirun -np 4 ./test
+
+chmod +x run_measurements.sh
+
+./run_measurements.sh
+
+cat results/measurements.csv
+
+python3 -m venv venv
+
+source venv/bin/activate
+
+python plot_results.py
