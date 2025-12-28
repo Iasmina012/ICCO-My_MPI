@@ -1,0 +1,44 @@
+iasmina012@Iasminas-MacBook-Pro-2 ~ % cd desktop/ICCO-My_MPI 
+
+iasmina012@Iasminas-MacBook-Pro-2 ICCO-My_MPI % make clean
+rm -rf bin results
+
+iasmina012@Iasminas-MacBook-Pro-2 ICCO-My_MPI % make
+mkdir -p bin
+mpicc  -O2 -Wall -std=c99  src/test.c src/my_mpi.c -o bin/test
+
+iasmina012@Iasminas-MacBook-Pro-2 ICCO-My_MPI % mpirun -np 4 ./bin/test
+Testing My_MPI_Barrier...
+ALL_TESTS_OK
+0.000000888,0.000000561
+
+iasmina012@Iasminas-MacBook-Pro-2 ICCO-My_MPI % chmod +x run_measurements.sh
+
+iasmina012@Iasminas-MacBook-Pro-2 ICCO-My_MPI % ./run_measurements.sh       
+Running with 1 processes...
+Running with 2 processes...
+Running with 4 processes...
+Running with 8 processes...
+
+Procs | My_MPI_Time | MPI_Time    
+---------------------------------
+1     | 0.000000081 | 0.000000024 
+2     | 0.000000522 | 0.000000259 
+4     | 0.000000902 | 0.000000558 
+8     | 0.000002596 | 0.000002045 
+
+Measurements saved in results/measurements.csv
+
+iasmina012@Iasminas-MacBook-Pro-2 ICCO-My_MPI % cat results/measurements.csv
+procs,my_mpi_time,mpi_time
+1,0.000000081,0.000000024
+2,0.000000522,0.000000259
+4,0.000000902,0.000000558
+8,0.000002596,0.000002045
+
+iasmina012@Iasminas-MacBook-Pro-2 ICCO-My_MPI % python3 -m venv venv  
+
+iasmina012@Iasminas-MacBook-Pro-2 ICCO-My_MPI % source venv/bin/activate  
+
+(venv) iasmina012@Iasminas-MacBook-Pro-2 ICCO-My_MPI % python plot_results.py  
+Plot saved as results/plot.png

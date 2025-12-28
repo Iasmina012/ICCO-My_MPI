@@ -4,7 +4,7 @@ make clean
 
 make
 
-mpirun -np 4 ./test
+mpirun -np 4 ./bin/test
 
 chmod +x run_measurements.sh
 
