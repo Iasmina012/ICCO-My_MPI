@@ -2,47 +2,76 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import sys
+import math
 
 RESULTS_DIR = "results"
 CSV_FILE = os.path.join(RESULTS_DIR, "measurements.csv")
-GRAPH_FILE = os.path.join(RESULTS_DIR, "plot.png")
+OUT_PLOT = os.path.join(RESULTS_DIR, "plot.png")
 
 if not os.path.exists(CSV_FILE):
     print("Missing measurements CSV:", CSV_FILE)
     sys.exit(1)
 
-data = pd.read_csv(CSV_FILE)
+df = pd.read_csv(CSV_FILE)
 
-#ensure numeric type
-data["procs"] = data["procs"].astype(int)
-data["my_mpi_time"] = data["my_mpi_time"].astype(float)
-data["mpi_time"] = data["mpi_time"].astype(float)
+# ensure correct dtypes
+df["procs"] = df["procs"].astype(int)
+df["my_mpi_time"] = df["my_mpi_time"].astype(float)
+df["mpi_time"] = df["mpi_time"].astype(float)
 
-#calculates speedups relative to 1 proc
-T1_my_mpi = data.loc[data["procs"] == 1, "my_mpi_time"].values[0]
-T1_mpi = data.loc[data["procs"] == 1, "mpi_time"].values[0]
-data["speedup_my_mpi"] = T1_my_mpi / data["my_mpi_time"]
-data["speedup_mpi"] = T1_mpi / data["mpi_time"]
+collectives = list(df["collective"].unique())
+collectives.sort()  # alphabetical; if you prefer specific order, set manually
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12,5))
+nrows = len(collectives)
+ncols = 2
 
-ax1.plot(data["procs"], data["my_mpi_time"], marker="o", label="My_MPI")
-ax1.plot(data["procs"], data["mpi_time"], marker="o", label="MPI")
-ax1.set_xlabel("Number of Processes")
-ax1.set_ylabel("Execution Time (s)")
-ax1.set_title("Execution Time")
-ax1.grid(True)
-ax1.legend()
+# big figure: each row = collective; left = execution time, right = speedup
+fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(10, 3 * max(1, nrows)))
 
-ax2.plot(data["procs"], data["speedup_my_mpi"], marker="o", label="My_MPI")
-ax2.plot(data["procs"], data["speedup_mpi"], marker="o", label="MPI")
-ax2.set_xlabel("Number of Processes")
-ax2.set_ylabel("SpeedUp (T1 / Tno_procs)")
-ax2.set_title("SpeedUp")
-ax2.grid(True)
-ax2.legend()
+if nrows == 1:
+    axes = [axes]  # make it indexable consistently
+
+for i, c in enumerate(collectives):
+    sub = df[df["collective"] == c].sort_values("procs")
+    procs = sub["procs"].values
+    my_times = sub["my_mpi_time"].values
+    mpi_times = sub["mpi_time"].values
+
+    # baseline for speedup: choose the measurement with smallest procs
+    if len(procs) == 0:
+        continue
+    base_procs = procs.min()
+    try:
+        base_my = sub[sub["procs"] == base_procs]["my_mpi_time"].values[0]
+        base_mpi = sub[sub["procs"] == base_procs]["mpi_time"].values[0]
+    except Exception:
+        base_my = my_times[0]
+        base_mpi = mpi_times[0]
+
+    # Execution time plot (left)
+    ax_time = axes[i][0] if nrows > 1 else axes[0]
+    ax_time.plot(procs, my_times, marker='o', label='My_MPI')
+    ax_time.plot(procs, mpi_times, marker='o', label='MPI')
+    ax_time.set_xlabel("Processes")
+    ax_time.set_ylabel("Time (s)")
+    ax_time.set_title(f"{c.capitalize()} — Execution Time")
+    ax_time.grid(True)
+    ax_time.legend()
+
+    # Speedup plot (right)
+    ax_speed = axes[i][1] if nrows > 1 else axes[1]
+    # avoid division by zero
+    speed_my = [ (base_my / t) if t > 0 else float('nan') for t in my_times ]
+    speed_mpi = [ (base_mpi / t) if t > 0 else float('nan') for t in mpi_times ]
+    ax_speed.plot(procs, speed_my, marker='o', label='My_MPI')
+    ax_speed.plot(procs, speed_mpi, marker='o', label='MPI')
+    ax_speed.set_xlabel("Processes")
+    ax_speed.set_ylabel("SpeedUp (T1 / Tno_procs)")
+    ax_speed.set_title(f"{c.capitalize()} — SpeedUp")
+    ax_speed.grid(True)
+    ax_speed.legend()
 
 plt.tight_layout()
-plt.savefig(GRAPH_FILE)
-print(f"Plot saved as {GRAPH_FILE}")
+plt.savefig(OUT_PLOT)
+print(f"Saved combined figure: {OUT_PLOT}")
 plt.show()

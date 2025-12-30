@@ -3,24 +3,26 @@
 #include <stdlib.h>
 #include <string.h>
 
-//Barrier - dissemination using Sendrecv
+//Barrier - dissemination barrier using Sendrecv
 int My_MPI_Barrier(MPI_Comm comm) {
 
     int rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
 
-    int step=1;
+    int step=1, rounds=0;
     while (step < size) {
-
-        int send_to=(rank+step)%size;
-        int recv_from=(rank-step+size)%size;
-        // send/recv 0-byte messages to synchronize
-        MPI_Sendrecv(NULL, 0, MPI_CHAR, send_to, step, NULL, 0, MPI_CHAR, recv_from, step, comm, MPI_STATUS_IGNORE);
         step<<=1;
-   
+        rounds++;
     }
 
+    for (int k=0;k<rounds;++k) {
+        int send_to=(rank+(1<<k))%size;
+        int recv_from=(rank-(1<<k)+size)%size;
+        // send/recv 0-byte messages to synchronize, unique tag per round
+        MPI_Sendrecv(NULL, 0, MPI_CHAR, send_to, 100+k, NULL, 0, MPI_CHAR, recv_from, 100+k, comm, MPI_STATUS_IGNORE);
+    }
+    
     return MPI_SUCCESS;
 
 }
@@ -41,14 +43,14 @@ int My_MPI_Bcast(void *buf, int count, MPI_Datatype dt, int root, MPI_Comm comm)
             int dst=vrank+mask;
             if (dst < size) {
                 int real_dst=(dst+root)%size;
-                MPI_Send(buf, count, dt, real_dst, 0, comm);
+                MPI_Send(buf, count, dt, real_dst, 200 + mask, comm);
             }
 
         } else if (vrank < 2 * mask) {
 
             int src=vrank-mask;
             int real_src=(src+root)%size;
-            MPI_Recv(buf, count, dt, real_src, 0, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(buf, count, dt, real_src, 200 + mask, comm, MPI_STATUS_IGNORE);
 
         }
 
@@ -69,21 +71,21 @@ int My_MPI_Reduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype dt
     MPI_Type_size(dt, &typesize);
 
     //acc = local acumulator
-    void *acc=malloc(count * typesize);
+    void *acc=malloc((size_t)count * typesize);
     if (!acc) 
         return MPI_ERR_NO_MEM;
-    memcpy(acc, sendbuf, count * typesize);
+    memcpy(acc, sendbuf, (size_t)count * typesize);
 
     int vrank=(rank-root+size)%size;
 
-    for (int mask = 1; mask < size; mask <<= 1) {
+    for (int mask=1;mask<size;mask<<=1) {
 
         if (vrank & mask) {
 
             // send to partner and exit loop
             int dst_v=vrank-mask;
             int dst=(dst_v+root)%size;
-            MPI_Send(acc, count, dt, dst, 0, comm);
+            MPI_Send(acc, count, dt, dst, 300 + mask, comm);
             break;
 
         } else {
@@ -92,17 +94,17 @@ int My_MPI_Reduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype dt
             if (src_v < size) {
 
                 int src=(src_v+root)%size;
-                void *tmp=malloc(count * typesize);
+                void *aux=malloc((size_t)count * typesize);
                
-                if (!tmp) { 
+                if (!aux) { 
                     free(acc); 
                     return MPI_ERR_NO_MEM; 
                 }
 
-                MPI_Recv(tmp, count, dt, src, 0, comm, MPI_STATUS_IGNORE);
-                // apply operation: tmp (in) combined into acc (inout)
-                MPI_Reduce_local(tmp, acc, count, dt, op);
-                free(tmp);
+                MPI_Recv(aux, count, dt, src, 300 + mask, comm, MPI_STATUS_IGNORE);
+                // apply operation: aux (in) combined into acc (inout)
+                MPI_Reduce_local(aux, acc, count, dt, op);
+                free(aux);
 
             }
 
@@ -111,7 +113,7 @@ int My_MPI_Reduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype dt
     }
 
     if (rank == root) {
-        memcpy(recvbuf, acc, count * typesize);
+        memcpy(recvbuf, acc, (size_t)count * typesize);
     }
 
     free(acc);
@@ -125,16 +127,16 @@ int My_MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype
     int rank;
     MPI_Comm_rank(comm, &rank);
 
-    int typesize;
+    int typesize=0, root=0;
     MPI_Type_size(dt, &typesize);
-    void *temp=malloc(count * typesize);
-    if (!temp) 
+    void *aux=malloc((size_t)count * typesize);
+    if (!aux) 
         return MPI_ERR_NO_MEM;
 
-    My_MPI_Reduce(sendbuf, temp, count, dt, op, 0, comm);
-    My_MPI_Bcast(temp, count, dt, 0, comm);
-    memcpy(recvbuf, temp, count * typesize);
-    free(temp);
+    My_MPI_Reduce(sendbuf, aux, count, dt, op, root, comm);
+    My_MPI_Bcast(aux, count, dt, root, comm);
+    memcpy(recvbuf, aux,(size_t)count * typesize);
+    free(aux);
     return MPI_SUCCESS;
 
 }
@@ -155,14 +157,14 @@ int My_MPI_Scatter(const void *sendbuf, int sendcount, MPI_Datatype sendtype, vo
         const char *sbase=(const char *)sendbuf;
         for (int i=0;i<size;i++) {
             if (i == root) {
-                memcpy(recvbuf, sbase + i * (size_t)sendcount * ssz, (size_t)recvcount * rsz);
+        memcpy(recvbuf, sbase + (size_t)i * sendcount * ssz, (size_t)sendcount * ssz);
             } else {
-                MPI_Send(sbase + i * (size_t)sendcount * ssz, sendcount, sendtype, i, 0, comm);
+        MPI_Send(sbase + (size_t)i * sendcount * ssz, sendcount, sendtype, i, 400 + i, comm);
             }
         }
 
     } else {
-        MPI_Recv(recvbuf, recvcount, recvtype, root, 0, comm, MPI_STATUS_IGNORE);
+        MPI_Recv(recvbuf, recvcount, recvtype, root, 400 + rank, comm, MPI_STATUS_IGNORE);
     }
 
     return MPI_SUCCESS;
@@ -188,11 +190,11 @@ int My_MPI_Gather(const void *sendbuf, int sendcount, MPI_Datatype sendtype, voi
         for (int i=0;i<size;i++) {
             if (i == rank) 
                 continue;
-            MPI_Recv(rbase + (size_t)i * recvcount * rsz, recvcount, recvtype, i, 0, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(rbase + (size_t)i * recvcount * rsz, recvcount, recvtype, i, 500 + i, comm, MPI_STATUS_IGNORE);
         }
 
     } else {
-        MPI_Send(sendbuf, sendcount, sendtype, root, 0, comm);
+        MPI_Send(sendbuf, sendcount, sendtype, root, 500 + rank, comm);
     }
 
     return MPI_SUCCESS;

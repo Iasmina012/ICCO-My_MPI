@@ -8,9 +8,13 @@ mkdir -p bin
 mpicc  -O2 -Wall -std=c99  src/test.c src/my_mpi.c -o bin/test
 
 iasmina012@Iasminas-MacBook-Pro-2 ICCO-My_MPI % mpirun -np 4 ./bin/test
-Testing My_MPI_Barrier...
 ALL_TESTS_OK
-0.000000888,0.000000561
+bcast,4,0.000000278,0.000000192
+reduce,4,0.000000336,0.000000274
+allreduce,4,0.000000865,0.000000536
+scatter,4,0.000000227,0.000000221
+gather,4,0.000000344,0.000000224
+barrier,4,0.000000453,0.000000494
 
 iasmina012@Iasminas-MacBook-Pro-2 ICCO-My_MPI % chmod +x run_measurements.sh
 
@@ -20,21 +24,62 @@ Running with 2 processes...
 Running with 4 processes...
 Running with 8 processes...
 
-Procs | My_MPI_Time | MPI_Time    
----------------------------------
-1     | 0.000000081 | 0.000000024 
-2     | 0.000000522 | 0.000000259 
-4     | 0.000000902 | 0.000000558 
-8     | 0.000002596 | 0.000002045 
+----------------------------------------------
+Collective | Procs | My_MPI Time | MPI Time    
+----------------------------------------------
+Bcast      | 1     | 0.000000008 | 0.000000007 
+Reduce     | 1     | 0.000000041 | 0.000000026 
+Allreduce  | 1     | 0.000000081 | 0.000000024 
+Scatter    | 1     | 0.000000020 | 0.000000035 
+Gather     | 1     | 0.000000019 | 0.000000027 
+Barrier    | 1     | 0.000000007 | 0.000000005 
+Bcast      | 2     | 0.000000108 | 0.000000109 
+Reduce     | 2     | 0.000000188 | 0.000000136 
+Allreduce  | 2     | 0.000000469 | 0.000000254 
+Scatter    | 2     | 0.000000104 | 0.000000103 
+Gather     | 2     | 0.000000113 | 0.000000126 
+Barrier    | 2     | 0.000000178 | 0.000000163 
+Bcast      | 4     | 0.000000366 | 0.000000171 
+Reduce     | 4     | 0.000000364 | 0.000000272 
+Allreduce  | 4     | 0.000000851 | 0.000000549 
+Scatter    | 4     | 0.000000221 | 0.000000218 
+Gather     | 4     | 0.000000297 | 0.000000204 
+Barrier    | 4     | 0.000000431 | 0.000000488 
+Bcast      | 8     | 0.000000794 | 0.000000838 
+Reduce     | 8     | 0.000001523 | 0.000000642 
+Allreduce  | 8     | 0.000002113 | 0.000001600 
+Scatter    | 8     | 0.000001138 | 0.000000680 
+Gather     | 8     | 0.000000795 | 0.000000607 
+Barrier    | 8     | 0.000001425 | 0.000001478 
 
 Measurements saved in results/measurements.csv
 
 iasmina012@Iasminas-MacBook-Pro-2 ICCO-My_MPI % cat results/measurements.csv
-procs,my_mpi_time,mpi_time
-1,0.000000081,0.000000024
-2,0.000000522,0.000000259
-4,0.000000902,0.000000558
-8,0.000002596,0.000002045
+collective,procs,my_mpi_time,mpi_time
+bcast,1,0.000000008,0.000000007
+reduce,1,0.000000041,0.000000026
+allreduce,1,0.000000081,0.000000024
+scatter,1,0.000000020,0.000000035
+gather,1,0.000000019,0.000000027
+barrier,1,0.000000007,0.000000005
+bcast,2,0.000000108,0.000000109
+reduce,2,0.000000188,0.000000136
+allreduce,2,0.000000469,0.000000254
+scatter,2,0.000000104,0.000000103
+gather,2,0.000000113,0.000000126
+barrier,2,0.000000178,0.000000163
+bcast,4,0.000000366,0.000000171
+reduce,4,0.000000364,0.000000272
+allreduce,4,0.000000851,0.000000549
+scatter,4,0.000000221,0.000000218
+gather,4,0.000000297,0.000000204
+barrier,4,0.000000431,0.000000488
+bcast,8,0.000000794,0.000000838
+reduce,8,0.000001523,0.000000642
+allreduce,8,0.000002113,0.000001600
+scatter,8,0.000001138,0.000000680
+gather,8,0.000000795,0.000000607
+barrier,8,0.000001425,0.000001478
 
 iasmina012@Iasminas-MacBook-Pro-2 ICCO-My_MPI % python3 -m venv venv  
 
