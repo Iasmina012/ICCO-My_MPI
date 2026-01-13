@@ -2,7 +2,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import sys
-import math
 
 RESULTS_DIR = "results"
 CSV_FILE = os.path.join(RESULTS_DIR, "measurements.csv")
@@ -14,22 +13,22 @@ if not os.path.exists(CSV_FILE):
 
 df = pd.read_csv(CSV_FILE)
 
-# ensure correct dtypes
+#ensure correct types for each col
 df["procs"] = df["procs"].astype(int)
 df["my_mpi_time"] = df["my_mpi_time"].astype(float)
 df["mpi_time"] = df["mpi_time"].astype(float)
 
 collectives = list(df["collective"].unique())
-collectives.sort()  # alphabetical; if you prefer specific order, set manually
+collectives.sort()  #alphabetical order
 
 nrows = len(collectives)
 ncols = 2
 
-# big figure: each row = collective; left = execution time, right = speedup
+#figure: each row = collective; left col = execution time, right col = speedup
 fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(10, 3 * max(1, nrows)))
 
 if nrows == 1:
-    axes = [axes]  # make it indexable consistently
+    axes = [axes]  #makes it indexable consistently
 
 for i, c in enumerate(collectives):
     sub = df[df["collective"] == c].sort_values("procs")
@@ -37,7 +36,7 @@ for i, c in enumerate(collectives):
     my_times = sub["my_mpi_time"].values
     mpi_times = sub["mpi_time"].values
 
-    # baseline for speedup: choose the measurement with smallest procs
+    #baseline for speedup (measurement with smallest procs)
     if len(procs) == 0:
         continue
     base_procs = procs.min()
@@ -48,7 +47,7 @@ for i, c in enumerate(collectives):
         base_my = my_times[0]
         base_mpi = mpi_times[0]
 
-    # Execution time plot (left)
+    #Execution Time Plot (left side)
     ax_time = axes[i][0] if nrows > 1 else axes[0]
     ax_time.plot(procs, my_times, marker='o', label='My_MPI')
     ax_time.plot(procs, mpi_times, marker='o', label='MPI')
@@ -58,9 +57,9 @@ for i, c in enumerate(collectives):
     ax_time.grid(True)
     ax_time.legend()
 
-    # Speedup plot (right)
+    #SpeedUp Plot (right side)
     ax_speed = axes[i][1] if nrows > 1 else axes[1]
-    # avoid division by zero
+    #avoids division by zero
     speed_my = [ (base_my / t) if t > 0 else float('nan') for t in my_times ]
     speed_mpi = [ (base_mpi / t) if t > 0 else float('nan') for t in mpi_times ]
     ax_speed.plot(procs, speed_my, marker='o', label='My_MPI')

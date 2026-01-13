@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -e #stop immediately when error encountered
 
 BIN=bin
 RESULTS=results

@@ -1,7 +1,7 @@
+#include "my_mpi.h"
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "my_mpi.h"
 
 #define BCAST_ITERS     10000
 #define REDUCE_ITERS    10000
@@ -22,20 +22,22 @@ int verify_tests(int rank, int size) {
 
     //Bcast
     {
+        //process 0 sends 42, others receive, if val isn't correct then ok=0
         int x = (rank == 0) ? 42 : 0;
 
         My_MPI_Bcast(&x, 1, MPI_INT, 0, MPI_COMM_WORLD);
         if (x != 42) 
-            ok = 0;
+            ok=0;
     }
 
     //Reduce
     {
+        //processes send vals to process 0, which does the sum
         int send=rank+1, recv=0;
 
         My_MPI_Reduce(&send, &recv, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
         if (rank == 0) {
-            int expected=size*(size+1)/2;
+            int expected=size*(size+1)/2; //verifies the sum
             if (recv != expected) 
                 ok=0;
         }
@@ -43,6 +45,7 @@ int verify_tests(int rank, int size) {
 
     //Allreduce
     {
+        //all processes get Reduce's result, not only process 0
         int send=rank+1, recv=0;
 
         My_MPI_Allreduce(&send, &recv, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
@@ -53,6 +56,8 @@ int verify_tests(int rank, int size) {
 
     //Scatter
     {
+        //process 0 sends one elem to each process
+        //each process verifies if the received val is correct
         int *sendbuf=NULL, recv=-1;
 
         if (rank == 0) {
@@ -69,6 +74,7 @@ int verify_tests(int rank, int size) {
 
     //Gather
     {
+        //processes send vals to process 0, that verifies if they've been received correctly
         int send=rank, *recv=NULL;
 
         if (rank == 0)
@@ -84,11 +90,12 @@ int verify_tests(int rank, int size) {
 
     //Barrier
     {
+        //only synchronization
         My_MPI_Barrier(MPI_COMM_WORLD);
-        //if blocks => wrong 
+        //if it blocks => wrong implementation
     }
 
-    return ok;
+    return ok; //all tests are correct
 
 }
 
@@ -258,7 +265,7 @@ int main(int argc, char **argv) {
     int ok=verify_tests(rank, size);
     if (rank == 0) {
         if (ok)
-            printf("verify_tests\n");
+            printf("ALL_TESTS_OK\n");
         else
             printf("ERROR: TESTS_FAILED\n");
     }
